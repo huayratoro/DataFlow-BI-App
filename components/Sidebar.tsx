@@ -18,6 +18,7 @@ interface SidebarProps {
   onCreateProject: () => void;
   onSelectProject: (id: string) => void;
   onDeleteProject: (id: string) => void;
+  onRenameProject: (id: string, newName: string) => void;
   isOpen: boolean;
   setIsOpen: (open: boolean) => void;
 }
@@ -28,13 +29,47 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onCreateProject,
   onSelectProject,
   onDeleteProject,
+  onRenameProject,
   isOpen,
   setIsOpen
 }) => {
+  const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
+  const [editingProjectName, setEditingProjectName] = useState('');
+  const editInputRef = React.useRef<HTMLInputElement>(null);
+
   const onDragStart = (event: React.DragEvent, nodeType: NodeType) => {
     event.dataTransfer.setData('application/reactflow', nodeType);
     event.dataTransfer.effectAllowed = 'move';
   };
+
+  const handleProjectDoubleClick = (id: string, currentName: string) => {
+    setEditingProjectId(id);
+    setEditingProjectName(currentName);
+  };
+
+  const handleProjectNameChange = (id: string) => {
+    if (editingProjectName.trim()) {
+      onRenameProject(id, editingProjectName.trim());
+    }
+    setEditingProjectId(null);
+    setEditingProjectName('');
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent, id: string) => {
+    if (e.key === 'Enter') {
+      handleProjectNameChange(id);
+    } else if (e.key === 'Escape') {
+      setEditingProjectId(null);
+      setEditingProjectName('');
+    }
+  };
+
+  React.useEffect(() => {
+    if (editingProjectId && editInputRef.current) {
+      editInputRef.current.focus();
+      editInputRef.current.select();
+    }
+  }, [editingProjectId]);
 
   return (
     <>
@@ -130,19 +165,44 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   group flex items-center justify-between p-2 rounded-md text-sm cursor-pointer transition-colors
                   ${activeProjectId === p.id ? 'bg-slate-100 text-slate-900 font-medium' : 'text-slate-600 hover:bg-slate-50'}
                 `}
-                onClick={() => onSelectProject(p.id)}
+                onClick={() => {
+                  if (editingProjectId !== p.id) {
+                    onSelectProject(p.id);
+                  }
+                }}
               >
-                <div className="flex items-center gap-2 overflow-hidden">
+                <div className="flex items-center gap-2 overflow-hidden flex-1">
                   <FolderOpen size={14} className={activeProjectId === p.id ? 'text-slate-800' : 'text-slate-400'} />
-                  <span className="truncate">{p.name}</span>
+                  {editingProjectId === p.id ? (
+                    <input
+                      ref={editInputRef}
+                      type="text"
+                      value={editingProjectName}
+                      onChange={(e) => setEditingProjectName(e.target.value)}
+                      onBlur={() => handleProjectNameChange(p.id)}
+                      onKeyDown={(e) => handleKeyDown(e, p.id)}
+                      onClick={(e) => e.stopPropagation()}
+                      className="flex-1 border border-blue-400 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Project name..."
+                    />
+                  ) : (
+                    <span 
+                      onDoubleClick={() => handleProjectDoubleClick(p.id, p.name)}
+                      className="truncate cursor-text hover:bg-slate-200 px-1 rounded transition-colors"
+                    >
+                      {p.name}
+                    </span>
+                  )}
                 </div>
                 
-                <button 
-                  onClick={(e) => { e.stopPropagation(); onDeleteProject(p.id); }}
-                  className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-50 hover:text-red-600 rounded"
-                >
-                  <Trash2 size={12} />
-                </button>
+                {editingProjectId !== p.id && (
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); onDeleteProject(p.id); }}
+                    className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-50 hover:text-red-600 rounded"
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                )}
               </div>
             ))}
           </div>

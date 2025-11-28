@@ -226,17 +226,29 @@ function Flow() {
     }
   };
 
+  const renameProject = async (id: string, newName: string) => {
+    const projectToRename = projects.find(p => p.id === id);
+    if (!projectToRename) return;
+
+    const updatedProject: Project = {
+      ...projectToRename,
+      name: newName,
+      updatedAt: Date.now()
+    };
+
+    await db.saveProject(updatedProject);
+    setProjects(prev => prev.map(p => p.id === id ? updatedProject : p));
+  };
+
   const onConnect = useCallback(
     (params: Connection) => setEdges((eds) => addEdge({ 
       ...params, 
       type: 'custom',
       markerEnd: {
         type: MarkerType.ArrowClosed,
-        color: '#94a3b8', // Default color, will be overridden by data.color if set
+        color: '#94a3b8',
       },
-      style: { strokeWidth: 2 },
       animated: true,
-      label: 'flows to',
       data: { color: '#94a3b8' } 
     }, eds)),
     [setEdges],
@@ -358,6 +370,7 @@ function Flow() {
           });
         }}
         onDeleteProject={deleteProject}
+        onRenameProject={renameProject}
         isOpen={sidebarOpen}
         setIsOpen={setSidebarOpen}
       />
