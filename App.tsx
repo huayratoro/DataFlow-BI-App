@@ -246,11 +246,9 @@ function Flow() {
       type: 'custom',
       markerEnd: {
         type: MarkerType.ArrowClosed,
-        color: '#94a3b8', // Default color, will be overridden by data.color if set
+        color: '#94a3b8',
       },
-      style: { strokeWidth: 2 },
       animated: true,
-      label: 'flows to',
       data: { color: '#94a3b8' } 
     }, eds)),
     [setEdges],
