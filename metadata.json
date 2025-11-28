@@ -1,0 +1,5 @@
+{
+  "name": "DataFlow BI",
+  "description": "A specialized diagramming tool for Power BI data analysts to visualize lineage between sources, tables, and measures with local persistence.",
+  "requestFramePermissions": []
+}
