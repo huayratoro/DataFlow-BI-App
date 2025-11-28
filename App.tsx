@@ -226,6 +226,20 @@ function Flow() {
     }
   };
 
+  const renameProject = async (id: string, newName: string) => {
+    const projectToRename = projects.find(p => p.id === id);
+    if (!projectToRename) return;
+
+    const updatedProject: Project = {
+      ...projectToRename,
+      name: newName,
+      updatedAt: Date.now()
+    };
+
+    await db.saveProject(updatedProject);
+    setProjects(prev => prev.map(p => p.id === id ? updatedProject : p));
+  };
+
   const onConnect = useCallback(
     (params: Connection) => setEdges((eds) => addEdge({ 
       ...params, 
@@ -358,6 +372,7 @@ function Flow() {
           });
         }}
         onDeleteProject={deleteProject}
+        onRenameProject={renameProject}
         isOpen={sidebarOpen}
         setIsOpen={setSidebarOpen}
       />
