@@ -29,6 +29,8 @@ export interface NodeData {
   description?: string;
   color?: string; // New field for custom color
   tableData?: TableData; // For Table nodes
+  url?: string; // For Source nodes
+  sourceType?: string; // For Source nodes
   [key: string]: unknown;
 }
 
