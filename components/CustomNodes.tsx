@@ -62,7 +62,12 @@ export const SourceNode = memo(({ data, selected }: NodeProps) => {
       icon={<Database size={14} />}
       selected={selected}
     >
-      {typedData.label}
+      <div>
+        <div className="font-medium">{typedData.label}</div>
+        {typedData.sourceType && (
+          <div className="text-xs text-slate-500 mt-1">{typedData.sourceType}</div>
+        )}
+      </div>
     </NodeWrapper>
   );
 });

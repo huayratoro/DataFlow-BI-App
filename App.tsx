@@ -22,6 +22,7 @@ import { Sidebar } from './components/Sidebar';
 import { nodeTypes } from './components/CustomNodes';
 import { CustomEdge } from './components/CustomEdge';
 import { TableEditModal } from './components/TableEditModal';
+import { SourceEditModal } from './components/SourceEditModal';
 import { Project, NodeType, COLORS, CUSTOM_PALETTE, TableData } from './types';
 import { db } from './services/db';
 
@@ -158,6 +159,25 @@ function Flow() {
     label: '',
     color: undefined,
     description: undefined,
+  });
+
+  // Source Edit Modal State
+  const [sourceEditModal, setSourceEditModal] = useState<{
+    isOpen: boolean;
+    nodeId: string;
+    label: string;
+    url?: string;
+    color?: string;
+    description?: string;
+    sourceType?: string;
+  }>({
+    isOpen: false,
+    nodeId: '',
+    label: '',
+    url: undefined,
+    color: undefined,
+    description: undefined,
+    sourceType: undefined,
   });
 
   const edgeTypes = useMemo(() => ({
@@ -336,6 +356,17 @@ function Flow() {
         color: node.data.color as string,
         description: node.data.description as string,
       });
+    } else if (node.type === NodeType.SOURCE) {
+      // For Source nodes, open the source edit modal
+      setSourceEditModal({
+        isOpen: true,
+        nodeId: node.id,
+        label: node.data.label as string,
+        url: node.data.url as string,
+        color: node.data.color as string,
+        description: node.data.description as string,
+        sourceType: node.data.sourceType as string,
+      });
     } else {
       // For other nodes, use the regular edit modal
       setEditModal({
@@ -408,6 +439,19 @@ function Flow() {
       })
     );
     setTableEditModal(prev => ({ ...prev, isOpen: false }));
+  };
+
+  const handleSaveSource = (label: string, url: string, color: string, description: string, sourceType: string) => {
+    setNodes((nds) =>
+      nds.map((node) => {
+        if (node.id !== sourceEditModal.nodeId) return node;
+        return {
+          ...node,
+          data: { ...node.data, label, url, color, description, sourceType },
+        };
+      })
+    );
+    setSourceEditModal(prev => ({ ...prev, isOpen: false }));
   };
 
   return (
@@ -499,6 +543,21 @@ function Flow() {
           initialColor={tableEditModal.color}
           initialDescription={tableEditModal.description}
           onSave={handleSaveTable}
+        />
+
+        <SourceEditModal
+          isOpen={sourceEditModal.isOpen}
+          onClose={() => setSourceEditModal(prev => ({ ...prev, isOpen: false }))}
+          initialLabel={sourceEditModal.label}
+          initialUrl={sourceEditModal.url}
+          initialColor={sourceEditModal.color}
+          initialDescription={sourceEditModal.description}
+          initialSourceType={sourceEditModal.sourceType}
+          onSave={handleSaveSource}
+          onDelete={() => {
+            setNodes(nds => nds.filter(n => n.id !== sourceEditModal.nodeId));
+            setSourceEditModal(prev => ({ ...prev, isOpen: false }));
+          }}
         />
       </div>
     </div>
