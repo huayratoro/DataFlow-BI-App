@@ -21,7 +21,8 @@ import * as htmlToImage from 'html-to-image';
 import { Sidebar } from './components/Sidebar';
 import { nodeTypes } from './components/CustomNodes';
 import { CustomEdge } from './components/CustomEdge';
-import { Project, NodeType, COLORS, CUSTOM_PALETTE } from './types';
+import { TableEditModal } from './components/TableEditModal';
+import { Project, NodeType, COLORS, CUSTOM_PALETTE, TableData } from './types';
 import { db } from './services/db';
 
 // Initial empty project state
@@ -141,6 +142,22 @@ function Flow() {
     type: 'node',
     id: '',
     label: '',
+  });
+
+  // Table Edit Modal State
+  const [tableEditModal, setTableEditModal] = useState<{
+    isOpen: boolean;
+    nodeId: string;
+    tableData?: TableData;
+    label: string;
+    color?: string;
+    description?: string;
+  }>({
+    isOpen: false,
+    nodeId: '',
+    label: '',
+    color: undefined,
+    description: undefined,
   });
 
   const edgeTypes = useMemo(() => ({
@@ -271,11 +288,20 @@ function Flow() {
         y: event.clientY,
       });
 
+      // Default table data
+      const defaultTableData: TableData = {
+        columns: [{ id: uuidv4(), name: 'Column' }],
+      };
+
       const newNode: Node = {
         id: uuidv4(),
         type,
         position,
-        data: { label: `New ${type}` }, // Type specific color is handled by component defaults if not in data
+        data: { 
+          label: `New ${type}`,
+          // Add default table data for table nodes
+          ...(type === NodeType.TABLE && { tableData: defaultTableData })
+        },
       };
 
       setNodes((nds) => nds.concat(newNode));
@@ -299,13 +325,27 @@ function Flow() {
 
   // Handle Double Clicks
   const onNodeDoubleClick = (_: React.MouseEvent, node: Node) => {
-    setEditModal({
-      isOpen: true,
-      type: 'node',
-      id: node.id,
-      label: node.data.label as string,
-      color: node.data.color as string,
-    });
+    // If it's a Table node, open the table edit modal
+    if (node.type === NodeType.TABLE) {
+      const tableData = node.data.tableData as TableData | undefined;
+      setTableEditModal({
+        isOpen: true,
+        nodeId: node.id,
+        tableData,
+        label: node.data.label as string,
+        color: node.data.color as string,
+        description: node.data.description as string,
+      });
+    } else {
+      // For other nodes, use the regular edit modal
+      setEditModal({
+        isOpen: true,
+        type: 'node',
+        id: node.id,
+        label: node.data.label as string,
+        color: node.data.color as string,
+      });
+    }
   };
 
   const onEdgeDoubleClick = (_: React.MouseEvent, edge: Edge) => {
@@ -355,6 +395,19 @@ function Flow() {
       setEdges(eds => eds.filter(e => e.id !== editModal.id));
     }
     setEditModal(prev => ({ ...prev, isOpen: false }));
+  };
+
+  const handleSaveTable = (tableData: TableData, label: string, color: string, description: string) => {
+    setNodes((nds) =>
+      nds.map((node) => {
+        if (node.id !== tableEditModal.nodeId) return node;
+        return {
+          ...node,
+          data: { ...node.data, label, color, description, tableData },
+        };
+      })
+    );
+    setTableEditModal(prev => ({ ...prev, isOpen: false }));
   };
 
   return (
@@ -436,6 +489,16 @@ function Flow() {
           initialColor={editModal.color}
           onSave={handleSaveModal}
           onDelete={handleDeleteFromModal}
+        />
+
+        <TableEditModal
+          isOpen={tableEditModal.isOpen}
+          onClose={() => setTableEditModal(prev => ({ ...prev, isOpen: false }))}
+          initialTableData={tableEditModal.tableData}
+          initialLabel={tableEditModal.label}
+          initialColor={tableEditModal.color}
+          initialDescription={tableEditModal.description}
+          onSave={handleSaveTable}
         />
       </div>
     </div>

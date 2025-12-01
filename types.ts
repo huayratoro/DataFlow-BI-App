@@ -15,10 +15,20 @@ export interface Project {
   edges: Edge[];
 }
 
+export interface TableColumn {
+  id: string;
+  name: string;
+}
+
+export interface TableData {
+  columns: TableColumn[];
+}
+
 export interface NodeData {
   label: string;
   description?: string;
   color?: string; // New field for custom color
+  tableData?: TableData; // For Table nodes
   [key: string]: unknown;
 }
 
