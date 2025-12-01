@@ -23,6 +23,7 @@ import { nodeTypes } from './components/CustomNodes';
 import { CustomEdge } from './components/CustomEdge';
 import { TableEditModal } from './components/TableEditModal';
 import { SourceEditModal } from './components/SourceEditModal';
+import { MeasureEditModal } from './components/MeasureEditModal';
 import { Project, NodeType, COLORS, CUSTOM_PALETTE, TableData } from './types';
 import { db } from './services/db';
 
@@ -178,6 +179,21 @@ function Flow() {
     color: undefined,
     description: undefined,
     sourceType: undefined,
+  });
+
+  // Measure Edit Modal State
+  const [measureEditModal, setMeasureEditModal] = useState<{
+    isOpen: boolean;
+    nodeId: string;
+    label: string;
+    color?: string;
+    description?: string;
+  }>({
+    isOpen: false,
+    nodeId: '',
+    label: '',
+    color: undefined,
+    description: undefined,
   });
 
   const edgeTypes = useMemo(() => ({
@@ -367,6 +383,15 @@ function Flow() {
         description: node.data.description as string,
         sourceType: node.data.sourceType as string,
       });
+    } else if (node.type === NodeType.MEASURE) {
+      // For Measure nodes, open the measure edit modal
+      setMeasureEditModal({
+        isOpen: true,
+        nodeId: node.id,
+        label: node.data.label as string,
+        color: node.data.color as string,
+        description: node.data.description as string,
+      });
     } else {
       // For other nodes, use the regular edit modal
       setEditModal({
@@ -452,6 +477,19 @@ function Flow() {
       })
     );
     setSourceEditModal(prev => ({ ...prev, isOpen: false }));
+  };
+
+  const handleSaveMeasure = (label: string, color: string, description: string) => {
+    setNodes((nds) =>
+      nds.map((node) => {
+        if (node.id !== measureEditModal.nodeId) return node;
+        return {
+          ...node,
+          data: { ...node.data, label, color, description },
+        };
+      })
+    );
+    setMeasureEditModal(prev => ({ ...prev, isOpen: false }));
   };
 
   return (
@@ -557,6 +595,19 @@ function Flow() {
           onDelete={() => {
             setNodes(nds => nds.filter(n => n.id !== sourceEditModal.nodeId));
             setSourceEditModal(prev => ({ ...prev, isOpen: false }));
+          }}
+        />
+
+        <MeasureEditModal
+          isOpen={measureEditModal.isOpen}
+          onClose={() => setMeasureEditModal(prev => ({ ...prev, isOpen: false }))}
+          initialLabel={measureEditModal.label}
+          initialColor={measureEditModal.color}
+          initialDescription={measureEditModal.description}
+          onSave={handleSaveMeasure}
+          onDelete={() => {
+            setNodes(nds => nds.filter(n => n.id !== measureEditModal.nodeId));
+            setMeasureEditModal(prev => ({ ...prev, isOpen: false }));
           }}
         />
       </div>
