@@ -132,6 +132,73 @@ function Flow() {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const { screenToFlowPosition, getNodes, getEdges } = useReactFlow();
 
+  // Highlight state for dependency visualization
+  const [highlightedNodes, setHighlightedNodes] = useState<Set<string>>(new Set());
+  const [highlightedEdges, setHighlightedEdges] = useState<Set<string>>(new Set());
+
+  // BFS algorithm to get transitive dependencies (all connected nodes upstream and downstream)
+  const getTransitiveDependencies = useCallback((nodeId: string, edges: Edge[]): { upstream: Set<string>, downstream: Set<string> } => {
+    const upstream = new Set<string>();
+    const downstream = new Set<string>();
+
+    // BFS for upstream (ancestors)
+    const upstreamQueue = [nodeId];
+    const upstreamVisited = new Set<string>([nodeId]);
+    while (upstreamQueue.length > 0) {
+      const current = upstreamQueue.shift()!;
+      const parents = edges.filter(e => e.target === current).map(e => e.source);
+      parents.forEach(parentId => {
+        if (!upstreamVisited.has(parentId)) {
+          upstreamVisited.add(parentId);
+          upstream.add(parentId);
+          upstreamQueue.push(parentId);
+        }
+      });
+    }
+
+    // BFS for downstream (descendants)
+    const downstreamQueue = [nodeId];
+    const downstreamVisited = new Set<string>([nodeId]);
+    while (downstreamQueue.length > 0) {
+      const current = downstreamQueue.shift()!;
+      const children = edges.filter(e => e.source === current).map(e => e.target);
+      children.forEach(childId => {
+        if (!downstreamVisited.has(childId)) {
+          downstreamVisited.add(childId);
+          downstream.add(childId);
+          downstreamQueue.push(childId);
+        }
+      });
+    }
+
+    return { upstream, downstream };
+  }, []);
+
+  // Handle selection changes for dependency highlighting
+  const onSelectionChange = useCallback(({ nodes: selectedNodes }: { nodes: Node[] }) => {
+    if (selectedNodes.length === 1) {
+      const selectedNodeId = selectedNodes[0].id;
+      const { upstream, downstream } = getTransitiveDependencies(selectedNodeId, edges);
+      
+      // Combine all connected nodes (including the selected one)
+      const allConnectedNodes = new Set([selectedNodeId, ...upstream, ...downstream]);
+      
+      // Find all edges that connect highlighted nodes
+      const connectedEdges = new Set(
+        edges
+          .filter(e => allConnectedNodes.has(e.source) && allConnectedNodes.has(e.target))
+          .map(e => e.id)
+      );
+      
+      setHighlightedNodes(allConnectedNodes);
+      setHighlightedEdges(connectedEdges);
+    } else {
+      // Clear highlight when no single node is selected
+      setHighlightedNodes(new Set());
+      setHighlightedEdges(new Set());
+    }
+  }, [edges, getTransitiveDependencies]);
+
   // Edit Modal State
   const [editModal, setEditModal] = useState<{
     isOpen: boolean;
@@ -533,8 +600,20 @@ function Flow() {
 
         {activeProjectId ? (
            <ReactFlow
-            nodes={nodes}
-            edges={edges}
+            nodes={nodes.map(node => ({
+              ...node,
+              data: {
+                ...node.data,
+                highlighted: highlightedNodes.size === 0 || highlightedNodes.has(node.id)
+              }
+            }))}
+            edges={edges.map(edge => ({
+              ...edge,
+              data: {
+                ...edge.data,
+                highlighted: highlightedEdges.size === 0 || highlightedEdges.has(edge.id)
+              }
+            }))}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
@@ -542,6 +621,7 @@ function Flow() {
             onDragOver={onDragOver}
             onNodeDoubleClick={onNodeDoubleClick}
             onEdgeDoubleClick={onEdgeDoubleClick}
+            onSelectionChange={onSelectionChange}
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
             fitView

@@ -23,6 +23,7 @@ export const CustomEdge = ({
   
   // Use color from data if available, otherwise fallback to existing style or default
   const edgeColor = (data?.color as string) || style.stroke || '#94a3b8';
+  const highlighted = data?.highlighted !== false; // Default to true if not set
 
   const [edgePath, labelX, labelY] = getSmoothStepPath({
     sourceX,
@@ -44,7 +45,8 @@ export const CustomEdge = ({
         style={{
           ...style,
           stroke: edgeColor,
-          strokeWidth: 2
+          strokeWidth: highlighted ? 3 : 2,
+          opacity: highlighted ? 1 : 0.3
         }} 
       />
       {hasLabel && (
