@@ -71,13 +71,12 @@ export const TableNode = memo(({ data, selected }: NodeProps) => {
   const typedData = data as NodeData;
   const tableData: TableData | undefined = typedData.tableData;
   const columns = tableData?.columns || [];
-  const rows = tableData?.rows || [];
 
   return (
     <NodeWrapper 
       defaultColor={COLORS.BLUE} 
       customColor={typedData.color}
-      title="Table" 
+      title={typedData.label || "Table"} 
       icon={<Table size={14} />}
       selected={selected}
     >
@@ -96,22 +95,20 @@ export const TableNode = memo(({ data, selected }: NodeProps) => {
                 </tr>
               </thead>
               <tbody>
-                {rows.map(row => (
-                  <tr key={row.id} className="hover:bg-slate-50">
-                    {columns.map(col => (
-                      <td key={`${row.id}-${col.id}`} className="border border-slate-300 px-2 py-1 text-slate-600">
-                        —
-                      </td>
-                    ))}
-                  </tr>
-                ))}
+                <tr className="hover:bg-slate-50">
+                  {columns.map(col => (
+                    <td key={col.id} className="border border-slate-300 px-2 py-1 text-slate-600">
+                      —
+                    </td>
+                  ))}
+                </tr>
               </tbody>
             </table>
           </div>
         )}
         
         {/* Empty State */}
-        {(columns.length === 0 || rows.length === 0) && (
+        {columns.length === 0 && (
           <div className="text-slate-400 text-xs italic py-2">
             Double-click to configure table
           </div>

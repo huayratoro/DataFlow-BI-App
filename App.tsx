@@ -149,9 +149,15 @@ function Flow() {
     isOpen: boolean;
     nodeId: string;
     tableData?: TableData;
+    label: string;
+    color?: string;
+    description?: string;
   }>({
     isOpen: false,
     nodeId: '',
+    label: '',
+    color: undefined,
+    description: undefined,
   });
 
   const edgeTypes = useMemo(() => ({
@@ -285,7 +291,6 @@ function Flow() {
       // Default table data
       const defaultTableData: TableData = {
         columns: [{ id: uuidv4(), name: 'Column' }],
-        rows: [{ id: uuidv4(), name: 'row1' }],
       };
 
       const newNode: Node = {
@@ -327,6 +332,9 @@ function Flow() {
         isOpen: true,
         nodeId: node.id,
         tableData,
+        label: node.data.label as string,
+        color: node.data.color as string,
+        description: node.data.description as string,
       });
     } else {
       // For other nodes, use the regular edit modal
@@ -389,13 +397,13 @@ function Flow() {
     setEditModal(prev => ({ ...prev, isOpen: false }));
   };
 
-  const handleSaveTable = (tableData: TableData) => {
+  const handleSaveTable = (tableData: TableData, label: string, color: string, description: string) => {
     setNodes((nds) =>
       nds.map((node) => {
         if (node.id !== tableEditModal.nodeId) return node;
         return {
           ...node,
-          data: { ...node.data, tableData },
+          data: { ...node.data, label, color, description, tableData },
         };
       })
     );
@@ -487,6 +495,9 @@ function Flow() {
           isOpen={tableEditModal.isOpen}
           onClose={() => setTableEditModal(prev => ({ ...prev, isOpen: false }))}
           initialTableData={tableEditModal.tableData}
+          initialLabel={tableEditModal.label}
+          initialColor={tableEditModal.color}
+          initialDescription={tableEditModal.description}
           onSave={handleSaveTable}
         />
       </div>

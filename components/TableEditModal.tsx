@@ -1,32 +1,38 @@
 import React, { useEffect, useState } from 'react';
 import { X, Trash2, Plus } from 'lucide-react';
-import { TableData, TableColumn, TableRow } from '../types';
+import { TableData, TableColumn, CUSTOM_PALETTE } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 
 interface TableEditModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialTableData?: TableData;
-  onSave: (tableData: TableData) => void;
+  initialLabel: string;
+  initialColor?: string;
+  initialDescription?: string;
+  onSave: (tableData: TableData, label: string, color: string, description: string) => void;
 }
 
 const DEFAULT_TABLE_DATA: TableData = {
   columns: [{ id: uuidv4(), name: 'Column' }],
-  rows: [{ id: uuidv4(), name: 'row1' }],
 };
 
-export const TableEditModal: React.FC<TableEditModalProps> = ({ isOpen, onClose, initialTableData, onSave }) => {
+export const TableEditModal: React.FC<TableEditModalProps> = ({ isOpen, onClose, initialTableData, initialLabel, initialColor, initialDescription, onSave }) => {
   const [tableData, setTableData] = useState<TableData>(DEFAULT_TABLE_DATA);
+  const [label, setLabel] = useState(initialLabel);
+  const [color, setColor] = useState(initialColor || CUSTOM_PALETTE[1]); // Default to Table color
+  const [description, setDescription] = useState(initialDescription || '');
   const [editingColumnId, setEditingColumnId] = useState<string | null>(null);
-  const [editingRowId, setEditingRowId] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen) {
       setTableData(initialTableData || DEFAULT_TABLE_DATA);
+      setLabel(initialLabel);
+      setColor(initialColor || CUSTOM_PALETTE[1]);
+      setDescription(initialDescription || '');
       setEditingColumnId(null);
-      setEditingRowId(null);
     }
-  }, [isOpen, initialTableData]);
+  }, [isOpen, initialTableData, initialLabel, initialColor, initialDescription]);
 
   if (!isOpen) return null;
 
@@ -41,28 +47,10 @@ export const TableEditModal: React.FC<TableEditModalProps> = ({ isOpen, onClose,
     }));
   };
 
-  const handleAddRow = () => {
-    const newRow: TableRow = {
-      id: uuidv4(),
-      name: `row${tableData.rows.length + 1}`,
-    };
-    setTableData(prev => ({
-      ...prev,
-      rows: [...prev.rows, newRow],
-    }));
-  };
-
   const handleDeleteColumn = (columnId: string) => {
     setTableData(prev => ({
       ...prev,
       columns: prev.columns.filter(col => col.id !== columnId),
-    }));
-  };
-
-  const handleDeleteRow = (rowId: string) => {
-    setTableData(prev => ({
-      ...prev,
-      rows: prev.rows.filter(row => row.id !== rowId),
     }));
   };
 
@@ -75,22 +63,21 @@ export const TableEditModal: React.FC<TableEditModalProps> = ({ isOpen, onClose,
     }));
   };
 
-  const handleRowNameChange = (rowId: string, newName: string) => {
-    setTableData(prev => ({
-      ...prev,
-      rows: prev.rows.map(row => 
-        row.id === rowId ? { ...row, name: newName } : row
-      ),
-    }));
-  };
-
   const handleSave = () => {
-    // Ensure at least one column and one row
-    if (tableData.columns.length === 0 || tableData.rows.length === 0) {
-      alert('Table must have at least one column and one row.');
+    // Validate inputs
+    if (label.trim() === '') {
+      alert('Table name cannot be empty.');
       return;
     }
-    onSave(tableData);
+    if (description.length > 500) {
+      alert('Description must be 500 characters or less.');
+      return;
+    }
+    if (tableData.columns.length === 0) {
+      alert('Table must have at least one column.');
+      return;
+    }
+    onSave(tableData, label, color, description);
     onClose();
   };
 
@@ -105,6 +92,18 @@ export const TableEditModal: React.FC<TableEditModalProps> = ({ isOpen, onClose,
         </div>
 
         <div className="space-y-6">
+          {/* Name Section */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 uppercase mb-2">Table Name</label>
+            <input
+              type="text"
+              value={label}
+              onChange={(e) => setLabel(e.target.value)}
+              className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Enter table name..."
+            />
+          </div>
+
           {/* Columns Section */}
           <div>
             <div className="flex justify-between items-center mb-3">
@@ -160,59 +159,33 @@ export const TableEditModal: React.FC<TableEditModalProps> = ({ isOpen, onClose,
             </div>
           </div>
 
-          {/* Rows Section */}
+          {/* Color Section */}
           <div>
-            <div className="flex justify-between items-center mb-3">
-              <h4 className="font-semibold text-slate-700">Rows</h4>
-              <button
-                onClick={handleAddRow}
-                className="flex items-center gap-1 px-3 py-1 bg-green-50 text-green-600 rounded hover:bg-green-100 text-sm font-medium"
-              >
-                <Plus size={14} /> Add Row
-              </button>
+            <label className="block text-xs font-semibold text-slate-500 uppercase mb-2">Color</label>
+            <div className="grid grid-cols-5 gap-2">
+              {CUSTOM_PALETTE.map((c) => (
+                <button
+                  key={c}
+                  onClick={() => setColor(c)}
+                  className={`w-8 h-8 rounded-full border-2 transition-transform hover:scale-110 ${color === c ? 'border-slate-800 scale-110' : 'border-transparent'}`}
+                  style={{ backgroundColor: c }}
+                  title={c}
+                />
+              ))}
             </div>
-            <div className="space-y-2">
-              {tableData.rows.length === 0 ? (
-                <p className="text-sm text-slate-400 italic">No rows. Add one to get started.</p>
-              ) : (
-                tableData.rows.map(row => (
-                  <div key={row.id} className="flex items-center gap-2 bg-slate-50 p-2 rounded border border-slate-200">
-                    {editingRowId === row.id ? (
-                      <>
-                        <input
-                          type="text"
-                          value={row.name}
-                          onChange={(e) => handleRowNameChange(row.id, e.target.value)}
-                          onBlur={() => setEditingRowId(null)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') setEditingRowId(null);
-                            if (e.key === 'Escape') setEditingRowId(null);
-                          }}
-                          className="flex-1 border border-green-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
-                          autoFocus
-                        />
-                      </>
-                    ) : (
-                      <>
-                        <span
-                          onDoubleClick={() => setEditingRowId(row.id)}
-                          className="flex-1 px-2 py-1 text-sm cursor-pointer hover:bg-slate-200 rounded"
-                        >
-                          {row.name}
-                        </span>
-                      </>
-                    )}
-                    <button
-                      onClick={() => handleDeleteRow(row.id)}
-                      className="text-red-500 hover:text-red-700 hover:bg-red-50 p-1 rounded"
-                      title="Delete row"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                ))
-              )}
-            </div>
+          </div>
+
+          {/* Description Section */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 uppercase mb-2">Description</label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              placeholder="Enter table description..."
+              rows={3}
+            />
+            <p className="text-[10px] text-slate-400 mt-1">{description.length}/500 characters</p>
           </div>
         </div>
 

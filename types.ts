@@ -20,14 +20,8 @@ export interface TableColumn {
   name: string;
 }
 
-export interface TableRow {
-  id: string;
-  name: string;
-}
-
 export interface TableData {
   columns: TableColumn[];
-  rows: TableRow[];
 }
 
 export interface NodeData {
