@@ -23,6 +23,7 @@ import { nodeTypes } from './components/CustomNodes';
 import { CustomEdge } from './components/CustomEdge';
 import { TableEditModal } from './components/TableEditModal';
 import { SourceEditModal } from './components/SourceEditModal';
+import { MeasureEditModal } from './components/MeasureEditModal';
 import { Project, NodeType, COLORS, CUSTOM_PALETTE, TableData } from './types';
 import { db } from './services/db';
 
@@ -131,6 +132,73 @@ function Flow() {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const { screenToFlowPosition, getNodes, getEdges } = useReactFlow();
 
+  // Highlight state for dependency visualization
+  const [highlightedNodes, setHighlightedNodes] = useState<Set<string>>(new Set());
+  const [highlightedEdges, setHighlightedEdges] = useState<Set<string>>(new Set());
+
+  // BFS algorithm to get transitive dependencies (all connected nodes upstream and downstream)
+  const getTransitiveDependencies = useCallback((nodeId: string, edges: Edge[]): { upstream: Set<string>, downstream: Set<string> } => {
+    const upstream = new Set<string>();
+    const downstream = new Set<string>();
+
+    // BFS for upstream (ancestors)
+    const upstreamQueue = [nodeId];
+    const upstreamVisited = new Set<string>([nodeId]);
+    while (upstreamQueue.length > 0) {
+      const current = upstreamQueue.shift()!;
+      const parents = edges.filter(e => e.target === current).map(e => e.source);
+      parents.forEach(parentId => {
+        if (!upstreamVisited.has(parentId)) {
+          upstreamVisited.add(parentId);
+          upstream.add(parentId);
+          upstreamQueue.push(parentId);
+        }
+      });
+    }
+
+    // BFS for downstream (descendants)
+    const downstreamQueue = [nodeId];
+    const downstreamVisited = new Set<string>([nodeId]);
+    while (downstreamQueue.length > 0) {
+      const current = downstreamQueue.shift()!;
+      const children = edges.filter(e => e.source === current).map(e => e.target);
+      children.forEach(childId => {
+        if (!downstreamVisited.has(childId)) {
+          downstreamVisited.add(childId);
+          downstream.add(childId);
+          downstreamQueue.push(childId);
+        }
+      });
+    }
+
+    return { upstream, downstream };
+  }, []);
+
+  // Handle selection changes for dependency highlighting
+  const onSelectionChange = useCallback(({ nodes: selectedNodes }: { nodes: Node[] }) => {
+    if (selectedNodes.length === 1) {
+      const selectedNodeId = selectedNodes[0].id;
+      const { upstream, downstream } = getTransitiveDependencies(selectedNodeId, edges);
+      
+      // Combine all connected nodes (including the selected one)
+      const allConnectedNodes = new Set([selectedNodeId, ...upstream, ...downstream]);
+      
+      // Find all edges that connect highlighted nodes
+      const connectedEdges = new Set(
+        edges
+          .filter(e => allConnectedNodes.has(e.source) && allConnectedNodes.has(e.target))
+          .map(e => e.id)
+      );
+      
+      setHighlightedNodes(allConnectedNodes);
+      setHighlightedEdges(connectedEdges);
+    } else {
+      // Clear highlight when no single node is selected
+      setHighlightedNodes(new Set());
+      setHighlightedEdges(new Set());
+    }
+  }, [edges, getTransitiveDependencies]);
+
   // Edit Modal State
   const [editModal, setEditModal] = useState<{
     isOpen: boolean;
@@ -178,6 +246,21 @@ function Flow() {
     color: undefined,
     description: undefined,
     sourceType: undefined,
+  });
+
+  // Measure Edit Modal State
+  const [measureEditModal, setMeasureEditModal] = useState<{
+    isOpen: boolean;
+    nodeId: string;
+    label: string;
+    color?: string;
+    description?: string;
+  }>({
+    isOpen: false,
+    nodeId: '',
+    label: '',
+    color: undefined,
+    description: undefined,
   });
 
   const edgeTypes = useMemo(() => ({
@@ -367,6 +450,15 @@ function Flow() {
         description: node.data.description as string,
         sourceType: node.data.sourceType as string,
       });
+    } else if (node.type === NodeType.MEASURE) {
+      // For Measure nodes, open the measure edit modal
+      setMeasureEditModal({
+        isOpen: true,
+        nodeId: node.id,
+        label: node.data.label as string,
+        color: node.data.color as string,
+        description: node.data.description as string,
+      });
     } else {
       // For other nodes, use the regular edit modal
       setEditModal({
@@ -454,6 +546,19 @@ function Flow() {
     setSourceEditModal(prev => ({ ...prev, isOpen: false }));
   };
 
+  const handleSaveMeasure = (label: string, color: string, description: string) => {
+    setNodes((nds) =>
+      nds.map((node) => {
+        if (node.id !== measureEditModal.nodeId) return node;
+        return {
+          ...node,
+          data: { ...node.data, label, color, description },
+        };
+      })
+    );
+    setMeasureEditModal(prev => ({ ...prev, isOpen: false }));
+  };
+
   return (
     <div className="flex h-screen w-screen overflow-hidden text-slate-800">
       <Sidebar 
@@ -495,8 +600,20 @@ function Flow() {
 
         {activeProjectId ? (
            <ReactFlow
-            nodes={nodes}
-            edges={edges}
+            nodes={nodes.map(node => ({
+              ...node,
+              data: {
+                ...node.data,
+                highlighted: highlightedNodes.size === 0 || highlightedNodes.has(node.id)
+              }
+            }))}
+            edges={edges.map(edge => ({
+              ...edge,
+              data: {
+                ...edge.data,
+                highlighted: highlightedEdges.size === 0 || highlightedEdges.has(edge.id)
+              }
+            }))}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
@@ -504,6 +621,7 @@ function Flow() {
             onDragOver={onDragOver}
             onNodeDoubleClick={onNodeDoubleClick}
             onEdgeDoubleClick={onEdgeDoubleClick}
+            onSelectionChange={onSelectionChange}
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
             fitView
@@ -557,6 +675,19 @@ function Flow() {
           onDelete={() => {
             setNodes(nds => nds.filter(n => n.id !== sourceEditModal.nodeId));
             setSourceEditModal(prev => ({ ...prev, isOpen: false }));
+          }}
+        />
+
+        <MeasureEditModal
+          isOpen={measureEditModal.isOpen}
+          onClose={() => setMeasureEditModal(prev => ({ ...prev, isOpen: false }))}
+          initialLabel={measureEditModal.label}
+          initialColor={measureEditModal.color}
+          initialDescription={measureEditModal.description}
+          onSave={handleSaveMeasure}
+          onDelete={() => {
+            setNodes(nds => nds.filter(n => n.id !== measureEditModal.nodeId));
+            setMeasureEditModal(prev => ({ ...prev, isOpen: false }));
           }}
         />
       </div>

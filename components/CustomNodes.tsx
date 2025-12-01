@@ -11,13 +11,18 @@ const NodeWrapper: React.FC<{
   title: string; 
   icon: React.ReactNode;
   selected?: boolean;
-}> = ({ children, defaultColor, customColor, title, icon, selected }) => {
+  highlighted?: boolean;
+}> = ({ children, defaultColor, customColor, title, icon, selected, highlighted = true }) => {
   
   const activeColor = customColor || defaultColor;
 
   return (
     <div 
-      className={`rounded-md shadow-lg bg-white border-2 min-w-[180px] transition-all duration-200 ${selected ? 'ring-2 ring-offset-1' : ''}`}
+      className={`rounded-md shadow-lg bg-white border-2 min-w-[180px] transition-all duration-200 ${
+        selected ? 'ring-2 ring-offset-1' : ''
+      } ${
+        !highlighted ? 'opacity-30' : 'opacity-100'
+      }`}
       style={{ 
         borderColor: activeColor,  
         boxShadow: selected ? `0 0 0 2px ${activeColor}40` : '0 4px 6px -1px rgb(0 0 0 / 0.1)' 
@@ -61,6 +66,7 @@ export const SourceNode = memo(({ data, selected }: NodeProps) => {
       title="Data Source" 
       icon={<Database size={14} />}
       selected={selected}
+      highlighted={typedData.highlighted}
     >
       <div>
         <div className="font-medium">{typedData.label}</div>
@@ -84,6 +90,7 @@ export const TableNode = memo(({ data, selected }: NodeProps) => {
       title={typedData.label || "Table"} 
       icon={<Table size={14} />}
       selected={selected}
+      highlighted={typedData.highlighted}
     >
       <div className="space-y-2">
         {/* Table Header (Columns) */}
@@ -132,6 +139,7 @@ export const MeasureNode = memo(({ data, selected }: NodeProps) => {
       title="Measure" 
       icon={<Calculator size={14} />}
       selected={selected}
+      highlighted={typedData.highlighted}
     >
       <div className="font-mono text-xs text-slate-500 mb-1">DAX</div>
       {typedData.label}
