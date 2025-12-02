@@ -1,7 +1,7 @@
 import React, { memo } from 'react';
 import { Handle, Position, NodeProps } from '@xyflow/react';
 import { Database, Table, Calculator } from 'lucide-react';
-import { COLORS, NodeType, NodeData } from '../types';
+import { COLORS, NodeType, NodeData, TableData, AppNode } from '../types';
 
 // Common wrapper for consistent "Obsidian-like" aesthetic
 const NodeWrapper: React.FC<{ 
@@ -11,13 +11,18 @@ const NodeWrapper: React.FC<{
   title: string; 
   icon: React.ReactNode;
   selected?: boolean;
-}> = ({ children, defaultColor, customColor, title, icon, selected }) => {
+  highlighted?: boolean;
+}> = ({ children, defaultColor, customColor, title, icon, selected, highlighted = true }) => {
   
   const activeColor = customColor || defaultColor;
 
   return (
     <div 
-      className={`rounded-md shadow-lg bg-white border-2 min-w-[180px] transition-all duration-200 ${selected ? 'ring-2 ring-offset-1' : ''}`}
+      className={`rounded-md shadow-lg bg-white border-2 min-w-[180px] transition-all duration-200 ${
+        selected ? 'ring-2 ring-offset-1' : ''
+      } ${
+        !highlighted ? 'opacity-30' : 'opacity-100'
+      }`}
       style={{ 
         borderColor: activeColor,  
         boxShadow: selected ? `0 0 0 2px ${activeColor}40` : '0 4px 6px -1px rgb(0 0 0 / 0.1)' 
@@ -52,45 +57,92 @@ const NodeWrapper: React.FC<{
   );
 };
 
-export const SourceNode = memo(({ data, selected }: NodeProps<NodeData>) => {
+export const SourceNode = memo(({ data, selected }: NodeProps) => {
+  const typedData = data as NodeData;
   return (
     <NodeWrapper 
       defaultColor={COLORS.GRAY} 
-      customColor={data.color}
+      customColor={typedData.color}
       title="Data Source" 
       icon={<Database size={14} />}
       selected={selected}
+      highlighted={typedData.highlighted}
     >
-      {data.label}
+      <div>
+        <div className="font-medium">{typedData.label}</div>
+        {typedData.sourceType && (
+          <div className="text-xs text-slate-500 mt-1">{typedData.sourceType}</div>
+        )}
+      </div>
     </NodeWrapper>
   );
 });
 
-export const TableNode = memo(({ data, selected }: NodeProps<NodeData>) => {
+export const TableNode = memo(({ data, selected }: NodeProps) => {
+  const typedData = data as NodeData;
+  const tableData: TableData | undefined = typedData.tableData;
+  const columns = tableData?.columns || [];
+
   return (
     <NodeWrapper 
       defaultColor={COLORS.BLUE} 
-      customColor={data.color}
-      title="Table" 
+      customColor={typedData.color}
+      title={typedData.label || "Table"} 
       icon={<Table size={14} />}
       selected={selected}
+      highlighted={typedData.highlighted}
     >
-      {data.label}
+      <div className="space-y-2">
+        {/* Table Header (Columns) */}
+        {columns.length > 0 && (
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse border border-slate-300 text-xs">
+              <thead>
+                <tr className="bg-slate-100">
+                  {columns.map(col => (
+                    <th key={col.id} className="border border-slate-300 px-2 py-1 text-left font-semibold text-slate-700">
+                      {col.name}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                <tr className="hover:bg-slate-50">
+                  {columns.map(col => (
+                    <td key={col.id} className="border border-slate-300 px-2 py-1 text-slate-600">
+                      —
+                    </td>
+                  ))}
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        )}
+        
+        {/* Empty State */}
+        {columns.length === 0 && (
+          <div className="text-slate-400 text-xs italic py-2">
+            Double-click to configure table
+          </div>
+        )}
+      </div>
     </NodeWrapper>
   );
 });
 
-export const MeasureNode = memo(({ data, selected }: NodeProps<NodeData>) => {
+export const MeasureNode = memo(({ data, selected }: NodeProps) => {
+  const typedData = data as NodeData;
   return (
     <NodeWrapper 
       defaultColor={COLORS.GREEN} 
-      customColor={data.color}
+      customColor={typedData.color}
       title="Measure" 
       icon={<Calculator size={14} />}
       selected={selected}
+      highlighted={typedData.highlighted}
     >
       <div className="font-mono text-xs text-slate-500 mb-1">DAX</div>
-      {data.label}
+      {typedData.label}
     </NodeWrapper>
   );
 });
