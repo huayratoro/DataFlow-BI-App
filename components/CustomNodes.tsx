@@ -1,6 +1,8 @@
 import React, { memo } from 'react';
-import { Handle, Position, NodeProps } from '@xyflow/react';
-import { Database, Table, Calculator } from 'lucide-react';
+import { Handle, Position, NodeProps, NodeResizer } from '@xyflow/react';
+import { Database, Table, Calculator, StickyNote } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { COLORS, NodeType, NodeData, TableData, AppNode } from '../types';
 
 // Common wrapper for consistent "Obsidian-like" aesthetic
@@ -147,8 +149,73 @@ export const MeasureNode = memo(({ data, selected }: NodeProps) => {
   );
 });
 
+export const NoteNode = memo(({ data, selected }: NodeProps) => {
+  const typedData = data as NodeData;
+  const activeColor = typedData.color || COLORS.YELLOW;
+  
+  return (
+    <div 
+      className="rounded-md shadow-md border-2 p-3 relative"
+      style={{ 
+        backgroundColor: `${activeColor}80`, // 50% opacity via alpha hex
+        borderColor: activeColor,
+        zIndex: -1, // Always behind other nodes
+        width: '100%',
+        height: '100%',
+        minWidth: '200px',
+        minHeight: '100px',
+      }}
+    >
+      <NodeResizer 
+        minWidth={200} 
+        minHeight={100}
+        isVisible={selected}
+        handleStyle={{ 
+          width: 10, 
+          height: 10, 
+          backgroundColor: activeColor,
+          border: '2px solid white',
+          borderRadius: '50%',
+        }}
+        lineStyle={{
+          borderColor: activeColor,
+          borderWidth: 2,
+        }}
+      />
+      
+      <div className="prose prose-sm max-w-none h-full overflow-auto">
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm]}
+          components={{
+            // Force black text for all elements
+            p: ({node, ...props}) => <p className="text-black !opacity-100 my-1" {...props} />,
+            h1: ({node, ...props}) => <h1 className="text-black !opacity-100 text-xl font-bold my-2" {...props} />,
+            h2: ({node, ...props}) => <h2 className="text-black !opacity-100 text-lg font-bold my-2" {...props} />,
+            h3: ({node, ...props}) => <h3 className="text-black !opacity-100 text-base font-bold my-1" {...props} />,
+            h4: ({node, ...props}) => <h4 className="text-black !opacity-100 text-sm font-bold my-1" {...props} />,
+            h5: ({node, ...props}) => <h5 className="text-black !opacity-100 text-sm font-bold my-1" {...props} />,
+            h6: ({node, ...props}) => <h6 className="text-black !opacity-100 text-xs font-bold my-1" {...props} />,
+            ul: ({node, ...props}) => <ul className="text-black !opacity-100 list-disc list-inside my-1" {...props} />,
+            ol: ({node, ...props}) => <ol className="text-black !opacity-100 list-decimal list-inside my-1" {...props} />,
+            li: ({node, ...props}) => <li className="text-black !opacity-100" {...props} />,
+            strong: ({node, ...props}) => <strong className="text-black !opacity-100 font-bold" {...props} />,
+            em: ({node, ...props}) => <em className="text-black !opacity-100 italic" {...props} />,
+            code: ({node, ...props}) => <code className="text-black !opacity-100 bg-black/10 px-1 rounded text-xs" {...props} />,
+            blockquote: ({node, ...props}) => <blockquote className="text-black !opacity-100 border-l-4 border-black/20 pl-3 my-2" {...props} />,
+          }}
+        >
+          {typedData.markdown || '*Double-click to edit this note*'}
+        </ReactMarkdown>
+      </div>
+      
+      {/* No handles for Notes - they don't participate in flows */}
+    </div>
+  );
+});
+
 export const nodeTypes = {
   [NodeType.SOURCE]: SourceNode,
   [NodeType.TABLE]: TableNode,
   [NodeType.MEASURE]: MeasureNode,
+  [NodeType.NOTE]: NoteNode,
 };

@@ -4,6 +4,7 @@ export enum NodeType {
   SOURCE = 'source',
   TABLE = 'table',
   MEASURE = 'measure',
+  NOTE = 'note',
 }
 
 export interface Project {
@@ -32,6 +33,7 @@ export interface NodeData {
   tableData?: TableData; // For Table nodes
   url?: string; // For Source nodes
   sourceType?: string; // For Source nodes
+  markdown?: string; // For Note nodes
   [key: string]: unknown;
 }
 
@@ -42,6 +44,7 @@ export const COLORS = {
   BLUE: '#32556e',   // Tables
   GREEN: '#4e9d2d',  // Measures
   GRAY: '#5c6670',   // Sources
+  YELLOW: '#fef08a', // Notes
   BG_LIGHT: '#f9fafb',
   BG_DARK: '#1f2937',
 };

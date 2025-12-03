@@ -24,6 +24,7 @@ import { CustomEdge } from './components/CustomEdge';
 import { TableEditModal } from './components/TableEditModal';
 import { SourceEditModal } from './components/SourceEditModal';
 import { MeasureEditModal } from './components/MeasureEditModal';
+import { NoteEditModal } from './components/NoteEditModal';
 import { Project, NodeType, COLORS, CUSTOM_PALETTE, TableData } from './types';
 import { db } from './services/db';
 
@@ -263,6 +264,28 @@ function Flow() {
     description: undefined,
   });
 
+  // Note Edit Modal State
+  const [noteEditModal, setNoteEditModal] = useState<{
+    isOpen: boolean;
+    nodeId: string;
+    color?: string;
+    markdown?: string;
+  }>({
+    isOpen: false,
+    nodeId: '',
+    color: undefined,
+    markdown: undefined,
+  });
+
+  // Placement Mode State (for click-to-place Notes)
+  const [placementMode, setPlacementMode] = useState<{
+    active: boolean;
+    nodeType: NodeType | null;
+  }>({
+    active: false,
+    nodeType: null,
+  });
+
   const edgeTypes = useMemo(() => ({
     custom: CustomEdge,
   }), []);
@@ -313,6 +336,23 @@ function Flow() {
     }, 2000);
     return () => clearTimeout(timer);
   }, [nodes, edges, activeProjectId, saveCurrentProject]);
+
+  // Cancel placement mode with Escape key
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && placementMode.active) {
+        setPlacementMode({ active: false, nodeType: null });
+      }
+    };
+    
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [placementMode.active]);
+
+  // Reset placement mode when changing projects
+  useEffect(() => {
+    setPlacementMode({ active: false, nodeType: null });
+  }, [activeProjectId]);
 
   const loadProject = (project: Project) => {
     setActiveProjectId(project.id);
@@ -426,6 +466,36 @@ function Flow() {
       });
   }, [reactFlowWrapper]);
 
+  // Handle Canvas Click for Placement Mode
+  const onCanvasClick = useCallback((event: React.MouseEvent) => {
+    if (!placementMode.active || !placementMode.nodeType) return;
+    
+    // Only create node if clicking on the canvas pane itself, not on existing nodes
+    const target = event.target as HTMLElement;
+    if (target.classList.contains('react-flow__pane')) {
+      const position = screenToFlowPosition({
+        x: event.clientX,
+        y: event.clientY,
+      });
+      
+      const newNode: Node = {
+        id: uuidv4(),
+        type: placementMode.nodeType,
+        position,
+        data: { 
+          markdown: '',
+          color: COLORS.YELLOW 
+        },
+        style: { zIndex: -1 },  // Always behind other nodes
+        width: 250,
+        height: 150,
+      };
+      
+      setNodes((nds) => nds.concat(newNode));
+      setPlacementMode({ active: false, nodeType: null });
+    }
+  }, [placementMode, screenToFlowPosition, setNodes]);
+
   // Handle Double Clicks
   const onNodeDoubleClick = (_: React.MouseEvent, node: Node) => {
     // If it's a Table node, open the table edit modal
@@ -458,6 +528,14 @@ function Flow() {
         label: node.data.label as string,
         color: node.data.color as string,
         description: node.data.description as string,
+      });
+    } else if (node.type === NodeType.NOTE) {
+      // For Note nodes, open the note edit modal
+      setNoteEditModal({
+        isOpen: true,
+        nodeId: node.id,
+        color: node.data.color as string,
+        markdown: node.data.markdown as string,
       });
     } else {
       // For other nodes, use the regular edit modal
@@ -559,6 +637,23 @@ function Flow() {
     setMeasureEditModal(prev => ({ ...prev, isOpen: false }));
   };
 
+  const handleSaveNote = (color: string, markdown: string) => {
+    setNodes((nds) =>
+      nds.map((node) => {
+        if (node.id !== noteEditModal.nodeId) return node;
+        return {
+          ...node,
+          data: { ...node.data, color, markdown },
+        };
+      })
+    );
+    setNoteEditModal(prev => ({ ...prev, isOpen: false }));
+  };
+
+  const handleStartPlacement = (nodeType: NodeType) => {
+    setPlacementMode({ active: true, nodeType });
+  };
+
   return (
     <div className="flex h-screen w-screen overflow-hidden text-slate-800">
       <Sidebar 
@@ -575,6 +670,7 @@ function Flow() {
         onRenameProject={renameProject}
         isOpen={sidebarOpen}
         setIsOpen={setSidebarOpen}
+        onStartPlacement={handleStartPlacement}
       />
       
       <div className="flex-1 relative h-full flex flex-col" ref={reactFlowWrapper}>
@@ -619,13 +715,14 @@ function Flow() {
             onConnect={onConnect}
             onDrop={onDrop}
             onDragOver={onDragOver}
+            onClick={onCanvasClick}
             onNodeDoubleClick={onNodeDoubleClick}
             onEdgeDoubleClick={onEdgeDoubleClick}
             onSelectionChange={onSelectionChange}
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
             fitView
-            className="bg-slate-100"
+            className={`bg-slate-100 ${placementMode.active ? 'cursor-crosshair' : ''}`}
             deleteKeyCode={['Backspace', 'Delete']}
           >
             <Background color="#cbd5e1" gap={16} size={1} />
@@ -688,6 +785,18 @@ function Flow() {
           onDelete={() => {
             setNodes(nds => nds.filter(n => n.id !== measureEditModal.nodeId));
             setMeasureEditModal(prev => ({ ...prev, isOpen: false }));
+          }}
+        />
+
+        <NoteEditModal
+          isOpen={noteEditModal.isOpen}
+          onClose={() => setNoteEditModal(prev => ({ ...prev, isOpen: false }))}
+          initialColor={noteEditModal.color}
+          initialMarkdown={noteEditModal.markdown}
+          onSave={handleSaveNote}
+          onDelete={() => {
+            setNodes(nds => nds.filter(n => n.id !== noteEditModal.nodeId));
+            setNoteEditModal(prev => ({ ...prev, isOpen: false }));
           }}
         />
       </div>

@@ -7,6 +7,7 @@ import {
   Database, 
   Table, 
   Calculator, 
+  StickyNote,
   Menu,
   MoreVertical,
   X
@@ -21,6 +22,7 @@ interface SidebarProps {
   onRenameProject: (id: string, newName: string) => void;
   isOpen: boolean;
   setIsOpen: (open: boolean) => void;
+  onStartPlacement?: (nodeType: NodeType) => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -31,7 +33,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onDeleteProject,
   onRenameProject,
   isOpen,
-  setIsOpen
+  setIsOpen,
+  onStartPlacement
 }) => {
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
   const [editingProjectName, setEditingProjectName] = useState('');
@@ -136,8 +139,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
               Measure
             </div>
+
+            <div 
+              className="p-2 bg-yellow-50 border border-yellow-200 rounded cursor-pointer hover:border-yellow-400 hover:bg-yellow-100 hover:shadow-sm transition-all flex items-center gap-3 text-sm text-slate-700"
+              onClick={() => onStartPlacement?.(NodeType.NOTE)}
+            >
+              <div className="w-6 h-6 rounded flex items-center justify-center text-white" style={{background: COLORS.YELLOW}}>
+                <StickyNote size={14} className="text-slate-700" />
+              </div>
+              Note
+            </div>
           </div>
-          <p className="text-[10px] text-slate-400 mt-2 text-center">Drag items to canvas</p>
+          <p className="text-[10px] text-slate-400 mt-2 text-center">
+            Drag items to canvas • Click Note to place
+          </p>
         </div>
 
         {/* Project List */}
